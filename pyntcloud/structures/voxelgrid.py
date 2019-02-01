@@ -21,7 +21,8 @@ except ImportError:
 
 class VoxelGrid(Structure):
 
-    def __init__(self, *, points, n_x=1, n_y=1, n_z=1, size_x=None, size_y=None, size_z=None, regular_bounding_box=True):
+    def __init__(self, *, points, n_x=1, n_y=1, n_z=1, size_x=None,
+                 size_y=None, size_z=None, xyzmin=None, xyzmax=None, regular_bounding_box=True):
         """Grid of voxels with support for different build methods.
 
         Parameters
@@ -35,6 +36,12 @@ class VoxelGrid(Structure):
             Default: None
             The desired voxel size along each axis.
             If not None, the corresponding n_x, n_y or n_z will be ignored.
+        xyzmin : numpy.array, optional
+            Point for lower bound of bounding box
+            If None lower bound of bounding box will be calculated
+        xyzmax : numpy.array, optional
+            Point for upper bound of bounding box
+            If None upper bound of bounding box will be calculated
         regular_bounding_box : bool, optional
             Default: True
             If True, the bounding box of the point cloud will be adjusted
@@ -44,11 +51,20 @@ class VoxelGrid(Structure):
         self.x_y_z = [n_x, n_y, n_z]
         self.sizes = [size_x, size_y, size_z]
         self.regular_bounding_box = regular_bounding_box
+        self.xyzmin = xyzmin
+        self.xyzmax = xyzmax
 
     def compute(self):
         """ABC API."""
-        xyzmin = self._points.min(0)
-        xyzmax = self._points.max(0)
+
+        xyzmin = self.xyzmin
+        xyzmax = self.xyzmax
+
+        if xyzmin is None:
+            xyzmin = np.array(self._points.min(0))
+
+        if xyzmax is None:
+            xyzmax = np.array(self._points.max(0))
 
         if self.regular_bounding_box:
             #: adjust to obtain a minimum bounding box with all sides of equal length
@@ -80,7 +96,9 @@ class VoxelGrid(Structure):
 
         self.n_voxels = self.x_y_z[0] * self.x_y_z[1] * self.x_y_z[2]
 
-        self.id = "V({},{},{})".format(self.x_y_z, self.sizes, self.regular_bounding_box)
+        self.id = "V({},{},{},{},{})".format(self.x_y_z, self.sizes,
+                                             self.xyzmin, self.xyzmax,
+                                             self.regular_bounding_box)
 
         # find where each point lies in corresponding segmented axis
         # -1 so index are 0-based; clip for edge cases
